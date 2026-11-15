@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+/*
+  Design tokens. Tailwind turns each of these into utility classes,
+  e.g. --color-ink -> `text-ink`, `bg-ink`, `border-ink`;
+  --font-hand -> `font-hand`.
+*/
+@theme {
+  --color-desk: #e6dfcf;   /* the table the notebook sits on */
+  --color-paper: #f6f1e6;  /* the page */
+  --color-rule: #d6ccb6;   /* dot grid + dashed lines */
+  --color-pencil: #8b8577; /* secondary text */
+  --color-ink: #1f2a44;    /* main text: navy fountain-pen ink */
+  --color-redpen: #b53a2a; /* the teacher's red pen accent */
+
+  /* One type family (IBM Plex) for a sturdy, practical "field notebook" feel,
+     plus a draftsman's hand for the red-pen notes. */
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif; /* headings, big numbers */
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;                   /* body text, habit names */
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;                 /* small labels */
+  --font-hand: "Patrick Hand", "Segoe Print", cursive;                   /* red-pen notes */
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-desk);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  A dot-grid notebook page. It lives in the "components" layer so that
+  Tailwind utilities (like md:shadow-none) can still override it.
+*/
+@layer components {
+  .page {
+    background-color: var(--color-paper);
+    background-image: radial-gradient(circle, var(--color-rule) 1.1px, transparent 1.4px);
+    background-size: 22px 22px;
+    background-position: 11px 11px;
+    box-shadow:
+      0 1px 0 #fffaf0 inset,
+      0 2px 3px rgb(60 45 20 / 0.08),
+      0 18px 40px -18px rgb(60 45 20 / 0.35);
+  }
+}
+
+/* Pen strokes that "draw" themselves. Paths use pathLength="1". */
+.ink-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ink-draw 0.2s ease-out forwards;
+}
+.ink-draw-2 {
+  animation-delay: 0.14s;
+}
+@keyframes ink-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Gentle "press" when a mark lands */
+.ink-land {
+  animation: ink-land 0.35s ease-out;
+}
+@keyframes ink-land {
+  0% { transform: scale(1.25) rotate(-6deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* 3D notebook in the welcome guide (see components/Book.jsx) */
+@keyframes cover-open {
+  to { transform: rotateY(-177deg); } /* no "from": starts wherever the cover is (e.g. lifted on hover) */
+}
+@keyframes cover-close {
+  from { transform: rotateY(-177deg); }
+  to { transform: rotateY(0deg); }
+}
+@keyframes leaf-turn {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(-178deg); }
+}
+@keyframes shade {
+  from { opacity: var(--shade-from); }
+  to { opacity: var(--shade-to); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-draw, .ink-land {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+::selection {
+  background: rgb(181 58 42 / 0.2);
+}
