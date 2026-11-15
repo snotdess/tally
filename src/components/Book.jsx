@@ -116,9 +116,22 @@ export function Leaf({ mode, ms, front, back, onDone }) {
 }
 
 // The cover. phase: 'closed' | 'opening' | 'open' | 'closing'.
-export function Cover({ phase, lifted, ms, onOpen, onDone, inside }) {
+//   openAngle     — where it comes to rest (-180 lies perfectly flat)
+//   insideSurface — 'endpaper' (patterned card) or 'paper' (a blank notebook page)
+//   callToAction  — show the pitch + "Open the notebook" button on the front
+export function Cover({
+  phase,
+  lifted = false,
+  ms,
+  onOpen,
+  onDone,
+  inside,
+  openAngle = COVER_OPEN,
+  insideSurface = 'endpaper',
+  callToAction = true,
+}) {
   const moving = phase === 'opening' || phase === 'closing'
-  const angle = phase === 'open' ? COVER_OPEN : lifted ? -7 : 0
+  const angle = phase === 'open' ? openAngle : lifted ? -7 : 0
 
   return (
     <div
@@ -129,6 +142,7 @@ export function Cover({ phase, lifted, ms, onOpen, onDone, inside }) {
         transformOrigin: 'left center',
         transformStyle: 'preserve-3d',
         transform: `rotateY(${angle}deg)`,
+        '--open-angle': `${openAngle}deg`, // read by the cover-open keyframes
         transition: phase === 'closed' ? `transform 450ms cubic-bezier(0.3, 0.7, 0.4, 1)` : 'none',
         animation: moving ? `${phase === 'opening' ? 'cover-open' : 'cover-close'} ${ms}ms ${EASE} forwards` : undefined,
       }}
@@ -137,18 +151,22 @@ export function Cover({ phase, lifted, ms, onOpen, onDone, inside }) {
       }}
     >
       <div className="absolute inset-0" style={hidden}>
-        <CoverFront onOpen={onOpen} interactive={phase === 'closed'} />
+        <CoverFront
+          onOpen={onOpen}
+          interactive={callToAction && phase === 'closed'}
+          callToAction={callToAction}
+        />
         <Shade from={0} to={0.45} ms={ms} play={moving} reverse={phase === 'closing'} atEnd={phase === 'open'} />
       </div>
       <div className="absolute inset-0" style={flipped}>
-        <CoverInside>{inside}</CoverInside>
+        <CoverInside surface={insideSurface}>{inside}</CoverInside>
         <Shade from={0.45} to={0} ms={ms} play={moving} reverse={phase === 'closing'} atEnd={phase === 'open'} />
       </div>
     </div>
   )
 }
 
-function CoverFront({ onOpen, interactive }) {
+function CoverFront({ onOpen, interactive, callToAction }) {
   return (
     <div
       className={`absolute inset-0 flex flex-col justify-between overflow-hidden rounded-l-[3px] rounded-r-[10px] bg-ink p-7 text-paper sm:p-9 ${
@@ -182,7 +200,7 @@ function CoverFront({ onOpen, interactive }) {
         </div>
       </div>
 
-      <div className="relative">
+      <div className={`relative ${callToAction ? '' : 'invisible'}`}>
         <p className="mb-5 max-w-[17rem] font-sans text-[17px] leading-snug text-paper/85">
           Write down what you want to do. Cross it off when you do it. Watch the tally marks add up.
         </p>
@@ -201,7 +219,20 @@ function CoverFront({ onOpen, interactive }) {
   )
 }
 
-function CoverInside({ children }) {
+function CoverInside({ surface, children }) {
+  if (surface === 'paper') {
+    return (
+      <div
+        className="page absolute inset-0 overflow-hidden rounded-l-[4px]"
+        style={{ boxShadow: 'inset -16px 0 22px -12px rgb(0 0 0 / 0.14)' }}
+        inert
+        aria-hidden="true"
+      >
+        {children}
+      </div>
+    )
+  }
+
   return (
     <div
       className="absolute inset-0 overflow-hidden rounded-l-[10px] rounded-r-[3px] bg-[#d9cfb8]"

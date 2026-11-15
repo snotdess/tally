@@ -5,6 +5,7 @@ import CheckButton from '../components/CheckButton'
 import Tally from '../components/Tally'
 import { useHabits } from '../lib/habitsStore'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { markIntroSeen } from '../lib/useOpeningIntro'
 
 // The welcome guide is a notebook you open:
 //   closed cover → open it → page 1 "How it works" → turn the page → page 2 "How to start"
@@ -24,6 +25,11 @@ export default function WelcomePage() {
   const [pageOneOnLeft, setPageOneOnLeft] = useState(false) // page 1 lies turned over on the left
   const [hovering, setHovering] = useState(false)
   const [demoDone, setDemoDone] = useState(false)
+
+  // The guide already opens the notebook, so don't play the app's opening intro after it
+  useEffect(() => {
+    markIntroSeen()
+  }, [])
 
   const busy = phase === 'opening' || phase === 'closing' || turn !== null
   const bookOpen = phase === 'opening' || phase === 'open'

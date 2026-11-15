@@ -73,7 +73,9 @@ body {
 
 /* 3D notebook in the welcome guide (see components/Book.jsx) */
 @keyframes cover-open {
-  to { transform: rotateY(-177deg); } /* no "from": starts wherever the cover is (e.g. lifted on hover) */
+  /* no "from": starts wherever the cover is (e.g. lifted on hover).
+     --open-angle is set by the Cover component (-177° in the guide, -180° in the intro). */
+  to { transform: rotateY(var(--open-angle, -177deg)); }
 }
 @keyframes cover-close {
   from { transform: rotateY(-177deg); }
