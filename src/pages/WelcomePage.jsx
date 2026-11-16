@@ -391,8 +391,8 @@ function GoodToKnow() {
         <section>
           <h3 className="font-sans text-lg font-semibold">It stays on this device</h3>
           <p className="mt-1 text-[15px] leading-relaxed text-ink/80">
-            No account and no sign-up. Your notebook is saved in this browser, so clearing your browsing data or
-            switching to another device starts a fresh one.
+            No account and no sign-up. Your notebook is saved in this browser. To move it to another device or keep
+            it safe, use <strong className="font-semibold">Save a copy</strong> on the Habits page.
           </p>
         </section>
 

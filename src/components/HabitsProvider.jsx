@@ -5,19 +5,23 @@ import { makeSampleHabits } from '../lib/sample'
 
 const STORAGE_KEY = 'tally:v1'
 
-// Saved shape: { onboarded: true, habits: [...] }
+// Saved shape: { onboarded: true, habits: [...], lastBackupAt: ISO date string | null }
 function load() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved !== null) {
       const data = JSON.parse(saved)
-      if (Array.isArray(data)) return { onboarded: true, habits: data } // older format
-      return { onboarded: Boolean(data.onboarded), habits: data.habits ?? [] }
+      if (Array.isArray(data)) return { onboarded: true, habits: data, lastBackupAt: null } // older format
+      return {
+        onboarded: Boolean(data.onboarded),
+        habits: data.habits ?? [],
+        lastBackupAt: typeof data.lastBackupAt === 'string' ? data.lastBackupAt : null,
+      }
     }
   } catch {
     // Storage blocked or corrupt: start as a first-time visitor
   }
-  return { onboarded: false, habits: [] }
+  return { onboarded: false, habits: [], lastBackupAt: null }
 }
 
 function newId() {
@@ -41,6 +45,7 @@ export default function HabitsProvider({ children }) {
   const store = {
     habits: state.habits,
     onboarded: state.onboarded,
+    lastBackupAt: state.lastBackupAt,
 
     addHabit(data) {
       setHabits((list) => [...list, { id: newId(), createdAt: toKey(today()), log: {}, ...data }])
@@ -68,11 +73,21 @@ export default function HabitsProvider({ children }) {
     },
 
     startFresh() {
-      setState({ onboarded: true, habits: [] })
+      setState((s) => ({ ...s, onboarded: true, habits: [] }))
     },
 
     startWithSample() {
-      setState({ onboarded: true, habits: makeSampleHabits() })
+      setState((s) => ({ ...s, onboarded: true, habits: makeSampleHabits() }))
+    },
+
+    // Replace the whole notebook with habits from a backup (already checked by lib/backup.js)
+    restoreHabits(habits) {
+      setState((s) => ({ ...s, onboarded: true, habits }))
+    },
+
+    // Remember when a copy was last saved, for the monthly reminder
+    markBackedUp() {
+      setState((s) => ({ ...s, lastBackupAt: new Date().toISOString() }))
     },
   }
 

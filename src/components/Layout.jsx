@@ -26,9 +26,10 @@ export default function Layout() {
         }
       : undefined
 
-  // Turning to a new page starts at the top
+  // Turning to a new page starts at the top, unless the link points at a
+  // section (e.g. /habits#backup), which that page scrolls to itself
   useEffect(() => {
-    window.scrollTo(0, 0)
+    if (!window.location.hash) window.scrollTo(0, 0)
   }, [pathname])
 
   return (

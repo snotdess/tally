@@ -5,6 +5,7 @@ import Spread from '../components/Spread'
 import WeekGrid from '../components/WeekGrid'
 import { weekOf, weekTotals } from '../lib/week'
 import { useHabits } from '../lib/habitsStore'
+import { needsBackupReminder } from '../lib/backup'
 import { currentStreak, isDone, isScheduled } from '../lib/habits'
 import { addDays, formatDayMonth, formatWeekday, toKey, today } from '../lib/dates'
 
@@ -37,7 +38,7 @@ function TodayHeader() {
 }
 
 function TodayList() {
-  const { habits, toggle } = useHabits()
+  const { habits, toggle, lastBackupAt } = useHabits()
   // A short note in red pen after you cross something off
   const [note, setNote] = useState(null)
 
@@ -96,6 +97,15 @@ function TodayList() {
             ))}
           </ul>
         </section>
+      )}
+
+      {needsBackupReminder(habits, lastBackupAt) && (
+        <Link
+          to="/habits#backup"
+          className="mt-10 block -rotate-1 font-hand text-xl text-redpen underline-offset-4 hover:underline"
+        >
+          It's been a while since you saved a copy of your notebook →
+        </Link>
       )}
     </>
   )

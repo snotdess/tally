@@ -1,5 +1,6 @@
 import { Link, Navigate, useParams } from 'react-router'
 import HabitDetail from '../components/HabitDetail'
+import NotebookPanel from '../components/NotebookPanel'
 import Spread from '../components/Spread'
 import { useHabits } from '../lib/habitsStore'
 import { currentStreak, describeDays, isDone, isScheduled } from '../lib/habits'
@@ -24,7 +25,7 @@ export default function HabitsPage() {
 }
 
 function HabitList({ selectedId }) {
-  const { habits, startFresh, startWithSample } = useHabits()
+  const { habits } = useHabits()
   const now = today()
   const last7 = Array.from({ length: 7 }, (_, i) => addDays(now, i - 6))
 
@@ -96,29 +97,7 @@ function HabitList({ selectedId }) {
         </div>
       )}
 
-      <section className="mt-12 border-t border-dashed border-rule pt-5">
-        <h2 className="font-mono text-xs tracking-[0.2em] text-pencil uppercase">This notebook</h2>
-        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 font-hand text-xl">
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm('Replace your habits with the example notebook?')) startWithSample()
-            }}
-            className="cursor-pointer text-pencil underline-offset-4 hover:text-ink hover:underline"
-          >
-            load example habits
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm('Start a fresh notebook? Every habit and its history will be erased.')) startFresh()
-            }}
-            className="cursor-pointer text-redpen underline-offset-4 hover:underline"
-          >
-            erase everything
-          </button>
-        </div>
-      </section>
+      <NotebookPanel />
     </>
   )
 }
