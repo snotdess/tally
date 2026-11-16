@@ -5,7 +5,7 @@ import WeekGrid from '../components/WeekGrid'
 import { weekOf, weekTotals } from '../lib/week'
 import { useHabits } from '../lib/habitsStore'
 import { isDone, isScheduled } from '../lib/habits'
-import { formatDayMonth, today } from '../lib/dates'
+import { formatDayMonth, toKey, today } from '../lib/dates'
 
 // Left page: the week's tracker.  Right page: how the week went.
 export default function WeekPage() {
@@ -87,8 +87,10 @@ function WeekReview({ habits, days, now }) {
     .filter((s) => s.planned > 0)
 
   const best = [...dayScores].sort((a, b) => b.kept / b.planned - a.kept / a.planned)[0]
+  // Today isn't over yet, so an unfinished today isn't a miss (same rule as streaks)
+  const isToday = (d) => toKey(d) === toKey(now)
   const mostMissed = [...rows]
-    .map((r) => ({ ...r, missed: r.plannedDays.length - r.kept }))
+    .map((r) => ({ ...r, missed: r.plannedDays.filter((d) => !isDone(r.habit, d) && !isToday(d)).length }))
     .sort((a, b) => b.missed - a.missed)[0]
 
   return (

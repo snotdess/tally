@@ -2,6 +2,8 @@
 
 A habit tracker that looks and behaves like a dot-grid bullet journal. Plan habits for certain days, cross them off with an ink X, keep streaks as tally marks, and see your week and months at a glance.
 
+**Live:** [tally-nine-eta.vercel.app](https://tally-nine-eta.vercel.app)
+
 Built by **Destiny Okoro** with React, React Router, Vite and Tailwind CSS.
 
 ## Features
