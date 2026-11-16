@@ -2,15 +2,19 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { BasePage, COVER_MS, Cover, Leaf, PAGE_MS } from '../components/Book'
 import CheckButton from '../components/CheckButton'
+import { GuideIcon, HabitsIcon, TodayIcon, WeekIcon } from '../components/Icons'
 import Tally from '../components/Tally'
 import { useHabits } from '../lib/habitsStore'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { markIntroSeen } from '../lib/useOpeningIntro'
 
 // The welcome guide is a notebook you open:
-//   closed cover → open it → page 1 "How it works" → turn the page → page 2 "How to start"
+//   closed cover → open it → turn through the pages → choose how to start
 // On wide screens the book slides to the centre as it opens so you see a full
 // two-page spread. On phones the cover swings off to the left instead.
+//
+// Pages are "sheets": each has a front (read on the right) and a back (seen on
+// the left once it's turned). The last page is never turned, so it has no back.
 export default function WelcomePage() {
   const { onboarded, startFresh, startWithSample } = useHabits()
   const navigate = useNavigate()
@@ -20,9 +24,9 @@ export default function WelcomePage() {
   const pageMs = reducedMotion ? 1 : PAGE_MS
 
   const [phase, setPhase] = useState('closed') // 'closed' | 'opening' | 'open' | 'closing'
-  const [page, setPage] = useState(1) // which step is on the right-hand page
-  const [turn, setTurn] = useState(null) // null | 'forward' | 'back'
-  const [pageOneOnLeft, setPageOneOnLeft] = useState(false) // page 1 lies turned over on the left
+  const [page, setPage] = useState(0) // index of the page on the right
+  const [turn, setTurn] = useState(null) // null | { dir: 'forward' | 'back', sheet: index }
+  const [openedAtEnd, setOpenedAtEnd] = useState(false) // "Skip intro" opened straight to the last page
   const [hovering, setHovering] = useState(false)
   const [demoDone, setDemoDone] = useState(false)
 
@@ -31,8 +35,32 @@ export default function WelcomePage() {
     markIntroSeen()
   }, [])
 
+  const fronts = [
+    <HowItWorks key="how" done={demoDone} onToggle={() => setDemoDone(!demoDone)} />,
+    <FindingYourWay key="way" />,
+    <GetStarted
+      key="start"
+      onboarded={onboarded}
+      onFresh={() => {
+        startFresh()
+        navigate('/habits/new?first=1')
+      }}
+      onSample={() => {
+        startWithSample()
+        navigate('/')
+      }}
+      onBack={() => navigate('/')}
+    />,
+  ]
+  const backs = [<Recap key="recap" />, <GoodToKnow key="good" />]
+  const last = fronts.length - 1
+
   const busy = phase === 'opening' || phase === 'closing' || turn !== null
   const bookOpen = phase === 'opening' || phase === 'open'
+
+  // Which turned sheet lies face-up on the left (-1 = just the inside of the cover).
+  // While a sheet is turning, the one beneath it shows.
+  const restingSheet = turn ? turn.sheet - 1 : openedAtEnd ? -1 : page - 1
 
   function openBook() {
     if (phase === 'closed') setPhase('opening')
@@ -41,27 +69,24 @@ export default function WelcomePage() {
   function next() {
     if (busy) return
     if (phase === 'closed') return openBook()
-    if (page === 1) {
-      setPage(2) // revealed underneath as page 1 turns over
-      setTurn('forward')
+    if (page < last) {
+      setTurn({ dir: 'forward', sheet: page })
+      setPage(page + 1) // revealed underneath as the current page turns over
     }
   }
 
   function back() {
     if (busy || phase !== 'open') return
-    if (page === 2) setTurn('back')
+    if (page > 0) setTurn({ dir: 'back', sheet: page - 1 })
     else setPhase('closing')
   }
 
   function skip() {
     if (onboarded) return navigate('/')
-    if (busy) return
-    if (phase === 'closed') {
-      setPage(2)
-      setPhase('opening')
-    } else if (page === 1) {
-      next()
-    }
+    if (busy || phase !== 'closed') return
+    setPage(last)
+    setOpenedAtEnd(true)
+    setPhase('opening')
   }
 
   function onCoverDone() {
@@ -69,14 +94,24 @@ export default function WelcomePage() {
   }
 
   function onTurnDone() {
-    if (turn === 'forward') {
-      setPageOneOnLeft(true)
-    } else {
-      setPage(1) // page 1 now covers the right side again
-      setPageOneOnLeft(false)
-    }
+    if (turn.dir === 'back') setPage(turn.sheet) // that sheet now covers the right side again
+    setOpenedAtEnd(false)
     setTurn(null)
   }
+
+  // Safety nets: normally each animation's end event moves the book on, but if the
+  // browser pauses animations (background tab, power saving) never get stuck mid-turn.
+  useEffect(() => {
+    if (phase !== 'opening' && phase !== 'closing') return
+    const t = setTimeout(onCoverDone, coverMs + 400)
+    return () => clearTimeout(t)
+  }, [phase, coverMs])
+
+  useEffect(() => {
+    if (!turn) return
+    const t = setTimeout(onTurnDone, pageMs + 400)
+    return () => clearTimeout(t)
+  }, [turn, pageMs]) // eslint-disable-line react-hooks/exhaustive-deps -- onTurnDone reads this same `turn`
 
   // Arrow keys turn pages
   useEffect(() => {
@@ -89,33 +124,19 @@ export default function WelcomePage() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const pageOne = <HowItWorks done={demoDone} onToggle={() => setDemoDone(!demoDone)} />
-  const pageTwo = (
-    <GetStarted
-      onboarded={onboarded}
-      onFresh={() => {
-        startFresh()
-        navigate('/habits/new?first=1')
-      }}
-      onSample={() => {
-        startWithSample()
-        navigate('/')
-      }}
-      onBack={() => navigate('/')}
-    />
-  )
-
   // Sizes: one page is --page-w wide. Wide screens reserve room for two.
   const pageW = wide ? 'min(25rem, calc((100vw - 5rem) / 2))' : 'min(28rem, calc(100vw - 2rem))'
   const pageH = 'clamp(500px, calc(100dvh - 9rem), 640px)'
+
+  const showSkip = onboarded || phase === 'closed'
 
   return (
     // overflow-x-clip: the open cover hangs off the left on phones; don't allow sideways scrolling
     <div className="flex min-h-dvh flex-col items-center justify-center overflow-x-clip px-4 py-8">
       <div style={{ '--page-w': pageW, '--page-h': pageH, width: wide ? 'calc(var(--page-w) * 2)' : 'var(--page-w)' }}>
         <div className="mb-4 flex h-6 items-center justify-between font-mono text-[11px] tracking-wider text-pencil uppercase">
-          <span aria-live="polite">{phase === 'open' && !turn ? `Page ${page} of 2` : ''}</span>
-          {!(page === 2 && phase === 'open') && (
+          <span aria-live="polite">{phase === 'open' && !turn ? `Page ${page + 1} of ${fronts.length}` : ''}</span>
+          {showSkip && (
             <button
               type="button"
               onClick={skip}
@@ -141,13 +162,21 @@ export default function WelcomePage() {
           onMouseLeave={() => setHovering(false)}
         >
           <BasePage coverShadow={!bookOpen} ms={coverMs * 0.7} inert={phase !== 'open' || turn !== null}>
-            {page === 1 ? pageOne : pageTwo}
+            {fronts[page]}
           </BasePage>
 
-          {turn ? (
-            <Leaf mode={turn} ms={pageMs} front={pageOne} back={<Recap />} onDone={onTurnDone} />
-          ) : (
-            pageOneOnLeft && page === 2 && <Leaf mode="turned" front={pageOne} back={<Recap />} />
+          {restingSheet >= 0 && (
+            <Leaf key={`rest-${restingSheet}`} mode="turned" front={fronts[restingSheet]} back={backs[restingSheet]} />
+          )}
+          {turn && (
+            <Leaf
+              key={`turn-${turn.sheet}-${turn.dir}`}
+              mode={turn.dir}
+              ms={pageMs}
+              front={fronts[turn.sheet]}
+              back={backs[turn.sheet]}
+              onDone={onTurnDone}
+            />
           )}
 
           <Cover
@@ -171,26 +200,26 @@ export default function WelcomePage() {
             type="button"
             onClick={back}
             disabled={busy}
-            className="cursor-pointer font-hand text-xl text-pencil hover:text-ink disabled:cursor-default"
+            className="w-32 cursor-pointer text-left font-hand text-xl text-pencil hover:text-ink disabled:cursor-default"
           >
-            {page === 1 ? '← close' : '← back'}
+            {page === 0 ? '← close' : '← back'}
           </button>
           <span className="flex gap-2" aria-hidden="true">
-            {[1, 2].map((s) => (
-              <span key={s} className={`size-2 rounded-full transition-colors ${s === page ? 'bg-ink' : 'bg-rule'}`} />
+            {fronts.map((_, i) => (
+              <span key={i} className={`size-2 rounded-full transition-colors ${i === page ? 'bg-ink' : 'bg-rule'}`} />
             ))}
           </span>
-          {page === 1 ? (
+          {page < last ? (
             <button
               type="button"
               onClick={next}
               disabled={busy}
-              className="cursor-pointer border-2 border-ink bg-ink px-5 py-2.5 font-mono text-xs tracking-[0.15em] text-paper uppercase transition-colors hover:bg-transparent hover:text-ink disabled:cursor-default"
+              className="w-44 cursor-pointer border-2 border-ink bg-ink px-5 py-2.5 font-mono text-xs tracking-[0.15em] text-paper uppercase transition-colors hover:bg-transparent hover:text-ink disabled:cursor-default"
             >
               Turn the page →
             </button>
           ) : (
-            <span className="w-32" />
+            <span className="w-44" />
           )}
         </nav>
       </div>
@@ -252,11 +281,9 @@ function GetStarted({ onboarded, onFresh, onSample, onBack }) {
   if (onboarded) {
     return (
       <>
-        <h2 className="border-b-2 border-ink pb-3 font-display text-4xl font-semibold">That's the whole idea.</h2>
+        <h2 className="border-b-2 border-ink pb-3 font-display text-4xl font-semibold">You're all set.</h2>
         <p className="mt-5 leading-relaxed text-ink/80">
-          Use <strong className="font-semibold">Today</strong> to cross things off,{' '}
-          <strong className="font-semibold">This week</strong> to see and fix the last few days, and{' '}
-          <strong className="font-semibold">Habits</strong> to add, change or review a habit.
+          That's everything. Your habits are just where you left them.
         </p>
         <button
           type="button"
@@ -309,6 +336,85 @@ function Choice({ onClick, title, text, primary = false }) {
   )
 }
 
+// Page 2: the three tabs and what each is for
+function FindingYourWay() {
+  const tabs = [
+    {
+      Icon: TodayIcon,
+      name: 'Today',
+      text: "Your list for the day. Tap the circle once something's done.",
+    },
+    {
+      Icon: WeekIcon,
+      name: 'This week',
+      text: 'Every habit across the week. Forgot to tick yesterday? Tap that day to fix it.',
+    },
+    {
+      Icon: HabitsIcon,
+      name: 'Habits',
+      text: 'Add a new habit, change one, or look back over months of history.',
+    },
+  ]
+
+  return (
+    <>
+      <h2 className="border-b-2 border-ink pb-3 font-display text-4xl font-semibold">Finding your way</h2>
+      <p className="mt-4 text-[15px] leading-relaxed text-ink/80">
+        Three tabs along the top of the notebook take you everywhere. On a phone they sit at the bottom of the screen.
+      </p>
+
+      <ul className="mt-5 space-y-5">
+        {tabs.map(({ Icon, name, text }) => (
+          <li key={name} className="grid grid-cols-[auto_1fr] items-start gap-x-4">
+            {/* a little sketch of the tab itself */}
+            <span className="mt-0.5 flex items-center gap-1.5 rounded-t-md border border-b-0 border-pencil/40 bg-[#ece4d3] px-2.5 py-1.5 font-mono text-[10px] tracking-[0.12em] text-ink uppercase">
+              <Icon />
+            </span>
+            <div>
+              <h3 className="font-sans text-lg font-semibold">{name}</h3>
+              <p className="mt-0.5 text-[15px] leading-relaxed text-ink/80">{text}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
+// The back of page 2, seen on the left of the last spread
+function GoodToKnow() {
+  return (
+    <div className="flex h-full flex-col">
+      <h2 className="border-b-2 border-ink pb-3 font-display text-3xl font-semibold">Good to know</h2>
+
+      <div className="mt-5 space-y-5">
+        <section>
+          <h3 className="font-sans text-lg font-semibold">It stays on this device</h3>
+          <p className="mt-1 text-[15px] leading-relaxed text-ink/80">
+            No account and no sign-up. Your notebook is saved in this browser, so clearing your browsing data or
+            switching to another device starts a fresh one.
+          </p>
+        </section>
+
+        <section>
+          <h3 className="flex items-center gap-2 font-sans text-lg font-semibold">
+            Need a reminder?
+          </h3>
+          <p className="mt-1 text-[15px] leading-relaxed text-ink/80">
+            This guide is always under{' '}
+            <span className="inline-flex translate-y-1 items-center gap-1 font-mono text-[11px] tracking-[0.12em] uppercase">
+              <GuideIcon /> Guide
+            </span>
+            .
+          </p>
+        </section>
+      </div>
+
+      <p className="mt-auto -rotate-1 font-hand text-xl text-redpen">Now, let's begin →</p>
+    </div>
+  )
+}
+
 // The back of page 1, seen on the left once it's turned
 function Recap() {
   return (
@@ -330,7 +436,7 @@ function Recap() {
           <span className="font-sans text-lg">keep the streak</span>
         </li>
       </ul>
-      <p className="mt-auto -rotate-1 font-hand text-xl text-redpen">That's all there is to it →</p>
+      <p className="mt-auto -rotate-1 font-hand text-xl text-redpen">Next: finding your way →</p>
     </div>
   )
 }
