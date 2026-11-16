@@ -1,0 +1,8 @@
+# Weekly check for package updates and security fixes.
+# GitHub opens a pull request when one is available; nothing changes until it's merged.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
